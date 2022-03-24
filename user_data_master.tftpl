@@ -1,0 +1,146 @@
+#!/bin/bash
+sudo apt -y update
+sudo apt  install -y docker.io
+sudo chmod 660 /var/run/docker.sock
+sudo usermod -a -G docker ubuntu
+sudo newgrp docker
+mkdir -p /home/ubuntu/jcasc
+ssh-keyscan ${worker_ip} > /home/ubuntu/jcasc/known_hosts
+my_public_ip=$(curl https://checkip.amazonaws.com)
+echo "My IP is $my_public_ip"
+echo "My login: ${j_login} my pass: ${j_pass}"
+echo "${gh_pipeline_repo}"
+
+cat <<EOF> /home/ubuntu/jcasc/plugins.txt
+ant:1.13
+antisamy-markup-formatter:2.7
+authorize-project:1.4.0
+build-timeout:1.20
+cloudbees-folder:6.714.v79e858ef76a_2
+configuration-as-code:1414.v878271fc496f
+credentials-binding:1.27.1
+pipeline-stage-view:2.23
+ssh-slaves:1.806.v2253cedd3295
+ssh-agent:1.24.1
+timestamper:1.17
+workflow-aggregator:2.7
+git:4.10.3
+github:1.34.3
+matrix-auth:3.1
+pam-auth:1.7
+job-dsl:1.78.3
+locale:144.v1a_998824ddb_3
+EOF
+
+cat <<EOF> /home/ubuntu/jcasc/casc.yaml
+jenkins:
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 5
+  labelString: "master"
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: ${j_login}
+          password: ${j_pass}
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "View/Read:authenticated"
+        - "Job/Read:authenticated"
+        - "Job/Build:authenticated"
+        - "Job/Discover:authenticated"
+        - "Job/Workspace:authenticated"
+        - "Job/Cancel:authenticated"
+        - "Run/Replay:authenticated"
+        - "Run/Update:authenticated"
+        - "Overall/Read:authenticated"
+        - "Overall/Administer:${j_login}"
+  globalNodeProperties:
+  - envVars:
+      env:
+      - key: "PROD_IP"
+        value: "${prod_ip}"
+      - key: "USER"
+        value: "${w_user}"
+      - key: "IMAGE"
+        value: "${dh_repo}"
+      - key: "APP_GIT_HUB_REPO"
+        value: "${gh_app_repo}"
+
+  remotingSecurity:
+    enabled: true
+  nodes:
+  - permanent:
+      labelString: "docker"
+      launcher:
+        ssh:
+          credentialsId: "SSH-KEY"
+          host: ${worker_ip}
+          port: 22
+          sshHostKeyVerificationStrategy: "knownHostsFileKeyVerificationStrategy"
+      name: "worker"
+      nodeDescription: "worker"
+      remoteFS: "/home/ubuntu/jenkins/"
+      retentionStrategy: "always"
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+        - usernamePassword:
+            scope: "GLOBAL"
+            id: "dockerHub-user"
+            description: "Docker Hub User Credentials"
+            username: ${dh_login}
+            password: ${dh_pass}
+        - basicSSHUserPrivateKey:
+            scope: GLOBAL
+            id: "SSH-KEY"
+            description: "SSH KEY"
+            username: ${w_user}
+            privateKeySource:
+              directEntry:
+                privateKey: |
+                  ${w_key}
+        - string:
+           description: "GitHub-token"
+           id: "GitHub-token"
+           scope: GLOBAL
+           secret: ${gh_token}
+unclassified:
+  locale:
+    systemLocale: en_US
+    ignoreAcceptLanguage: true
+  location:
+    url: http://$my_public_ip:8080
+  gitHubPluginConfig:
+    configs:
+    - credentialsId: "GitHub-token"
+    hookUrl: "http://$my_public_ip:8080/github-webhook/"
+jobs:
+  - script: >
+      multibranchPipelineJob('configuration-as-code') {
+          branchSources {
+              git {
+                  id = 'configuration-as-code'
+                  remote('${gh_pipeline_repo}')
+              }
+          }
+      }
+EOF
+
+cat <<EOF> /home/ubuntu/jcasc/Dockerfile
+FROM jenkins/jenkins:2.340
+ENV JAVA_OPTS -Djenkins.install.runSetupWizard=false
+ENV CASC_JENKINS_CONFIG /var/jenkins_home/casc.yaml
+COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/ref/plugins.txt
+COPY casc.yaml /var/jenkins_home/casc.yaml
+COPY known_hosts /var/jenkins_home/.ssh/known_hosts
+EOF
+
+cat /home/ubuntu/jcasc/Dockerfile
+cd /home/ubuntu/jcasc
+sudo docker build --rm=false -t jenkins:jcasc .
+sudo docker run --name jenkins -p 8080:8080 -p 50000:50000 --env ${j_login} --env ${j_pass} jenkins:jcasc
