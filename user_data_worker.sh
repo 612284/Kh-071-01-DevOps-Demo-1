@@ -9,5 +9,3 @@ sudo chmod 660 /var/run/docker.sock
 sudo usermod -a -G docker ubuntu
 sudo newgrp
 my_public_ip=$(curl https://checkip.amazonaws.com)
-# echo "My IP is $my_public_ip"
-# echo "My login: ${j_login} my pass: ${j_pass}"
