@@ -7,5 +7,4 @@ mkdir /home/ubuntu/jenkins/
 sudo chown ubuntu:ubuntu /home/ubuntu/jenkins
 sudo chmod 660 /var/run/docker.sock
 sudo usermod -a -G docker ubuntu
-sudo newgrp
 my_public_ip=$(curl https://checkip.amazonaws.com)
