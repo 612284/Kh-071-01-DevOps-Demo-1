@@ -31,7 +31,3 @@ resource "aws_security_group" "prod_sg" {
     Name = "prod security group"
   }
 }
-
-output "prod_public_ip" {
-  value = aws_instance.prod.public_ip
-}

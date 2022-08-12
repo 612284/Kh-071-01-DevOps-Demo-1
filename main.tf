@@ -10,11 +10,6 @@ data "aws_ami" "latest_ubuntu" {
   }
 }
 
-data "aws_eip" "jenkins_public_ip" {
-  public_ip = var.aws_elastic_ip
-}
-
-
 data "template_file" "user_data_master" {
   template = templatefile("user_data_master.tftpl", {
     j_login          = var.jenkins_login,
@@ -30,11 +25,6 @@ data "template_file" "user_data_master" {
     worker_ip        = aws_instance.worker.public_ip,
     prod_ip          = aws_instance.prod.public_ip
   })
-}
-
-resource "aws_eip_association" "my_eip_association" {
-  instance_id   = aws_instance.jenkins.id
-  allocation_id = data.aws_eip.jenkins_public_ip.id
 }
 
 resource "aws_security_group" "jenkins_sg" {
@@ -71,43 +61,28 @@ resource "aws_instance" "jenkins" {
   depends_on = [aws_instance.worker, aws_instance.prod]
 }
 
-output "jenkins_elastic_ip" {
-  value = aws_eip_association.my_eip_association.public_ip
-}
+resource "null_resource" "webhook" {
 
-variable "aws_elastic_ip" {
-  type = string
-}
-variable "jenkins_login" {
-  type = string
-}
+  provisioner "local-exec" {
+    command = <<EOH
+    curl \
+  -X POST \
+  -H 'Accept: application/vnd.github+json' \
+  -H 'Authorization: token ${var.git_hub_token}' \
+  ${var.git_hub_repo_web_hook} \
+  -d '{"name":"web","active":true,"events":["push"],"config":{"url":"http://${aws_instance.jenkins.public_ip}:8080/github-webhook/","content_type":"json","insecure_ssl":"0"}}'
+EOH
+  }
 
-variable "jenkins_pass" {
-  type = string
-}
-
-variable "docker_hub_login" {
-  type = string
-}
-
-variable "docker_hub_password" {
-  type = string
-}
-variable "docker_hub_repo" {
-  type = string
-}
-variable "worker_user" {
-  type = string
-}
-variable "worker_id_rsa" {
-  type = string
-}
-variable "git_hub_token" {
-  type = string
-}
-variable "git_hub_repo_app" {
-  type = string
-}
-variable "git_hub_repo_pipeline" {
-  type = string
+  #   provisioner "local-exec" {
+  #     when    = destroy
+  #     command = <<EOH
+  #     curl \
+  #   -X DELETE \
+  #   -H 'Accept: application/vnd.github+json' \
+  #   -H 'Authorization: token ${var.git_hub_token}' \
+  #   https://api.github.com/repos/612284/flask-app/hooks/${data.local_file.webhook_id.content}
+  # EOH
+  #   }
+  depends_on = [aws_instance.jenkins]
 }

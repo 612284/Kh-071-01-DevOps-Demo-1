@@ -26,7 +26,7 @@ worker_id_rsa         = "/pach/to/id_rsa "
 git_hub_token         = "ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 git_hub_repo_app      = "https://github.com/612284/flask-app.git"
 git_hub_repo_pipeline = "https://github.com/612284/test-pipeline.git"
-aws_elastic_ip        = "XXX.XXX.XXX.XXX"
+git_hub_repo_web_hook = "https://api.github.com/repos/612284/flask-app/hooks"
 ```
 4 to add AWS credentials for example create 2 files
 

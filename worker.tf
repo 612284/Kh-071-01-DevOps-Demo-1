@@ -30,7 +30,3 @@ resource "aws_security_group" "worker_sg" {
     Name = "worker security group"
   }
 }
-
-output "worker_public_ip" {
-  value = aws_instance.worker.public_ip
-}
