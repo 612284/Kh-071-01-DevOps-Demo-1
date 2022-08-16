@@ -74,15 +74,9 @@ resource "null_resource" "webhook" {
 EOH
   }
 
-  #   provisioner "local-exec" {
-  #     when    = destroy
-  #     command = <<EOH
-  #     curl \
-  #   -X DELETE \
-  #   -H 'Accept: application/vnd.github+json' \
-  #   -H 'Authorization: token ${var.git_hub_token}' \
-  #   https://api.github.com/repos/612284/flask-app/hooks/${data.local_file.webhook_id.content}
-  # EOH
-  #   }
+  provisioner "local-exec" {
+    when    = destroy
+    command = "./web-hook-delete.sh"
+  }
   depends_on = [aws_instance.jenkins]
 }

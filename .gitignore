@@ -8,6 +8,7 @@
 terraform.tfvars
 secrets.hcl
 secret.tfvars
+secret.sh
 
 # Module directory
 .terraform/
@@ -28,3 +29,4 @@ tags
 .vscode
 .idea
 id_rsa
+web_hook_id.txt
